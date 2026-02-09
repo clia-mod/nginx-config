@@ -39,3 +39,15 @@ fn include_with_variable_in_path() {
     assert!(names.contains(&"daemon"));
 }
 
+#[test]
+fn include_repo_fixture_is_loaded() {
+    use std::path::Path;
+    let path = Path::new("tests/include/nginx.conf");
+    let m = parse_main_from_file(&path).unwrap();
+    // find http block and assert it contains a server directive from the included file
+    let http = m.directives.iter().find(|d| d.item.directive_name() == "http").expect("http block");
+    let children = http.item.children().unwrap();
+    let has_server = children.iter().any(|c| c.item.directive_name() == "server");
+    assert!(has_server);
+}
+
