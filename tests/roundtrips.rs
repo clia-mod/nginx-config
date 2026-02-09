@@ -1,10 +1,10 @@
-extern crate nginx_config;
+extern crate clia_nginx_config;
 #[cfg(test)] #[macro_use] extern crate pretty_assertions;
 
 use std::io::Read;
 use std::fs::File;
 
-use nginx_config::parse_main;
+use clia_nginx_config::parse_main;
 
 fn roundtrip(filename: &str) {
     let mut buf = String::with_capacity(1024);

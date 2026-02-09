@@ -16,6 +16,7 @@ extern crate combine;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate matches;
 #[cfg(test)] #[macro_use] extern crate pretty_assertions;
+extern crate glob;
 
 pub mod ast;
 mod display;
@@ -37,7 +38,7 @@ mod rewrite;
 mod log;
 mod real_ip;
 
-pub use grammar::{parse_main, parse_directives};
+pub use grammar::{parse_main, parse_directives, parse_main_from_file, parse_directives_from_file};
 pub use format::Style;
 pub use position::Pos;
 pub use error::ParseError;

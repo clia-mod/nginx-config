@@ -1,11 +1,11 @@
-extern crate nginx_config;
+extern crate clia_nginx_config;
 extern crate regex;
 #[macro_use] extern crate pretty_assertions;
 
 use std::io::Read;
 use std::fs::File;
 
-use nginx_config::parse_main;
+use clia_nginx_config::parse_main;
 
 
 fn test_error(filename: &str) {

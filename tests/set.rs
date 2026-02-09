@@ -1,7 +1,7 @@
-extern crate nginx_config;
+extern crate clia_nginx_config;
 #[cfg(test)] #[macro_use] extern crate pretty_assertions;
 
-use nginx_config::parse_main;
+use clia_nginx_config::parse_main;
 
 fn roundtrip(value: &str) {
     let ast = parse_main(&value).unwrap();

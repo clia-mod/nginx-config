@@ -338,3 +338,133 @@ pub fn parse_directives(s: &str) -> Result<Vec<Directive>, ParseError> {
         .map_err(|e| e.into_inner().error)?;
     Ok(doc)
 }
+
+use std::path::{Path, PathBuf};
+use std::fs;
+use glob::glob;
+use std::collections::HashMap;
+
+/// Parse a file on disk and also expand `include` directives using globbing.
+///
+/// Includes with variable references are left untouched. Included files are
+/// processed recursively using their directory as a base for relative paths.
+pub fn parse_directives_from_file<P: AsRef<Path>>(path: P)
+    -> Result<Vec<Directive>, ::failure::Error>
+{
+    let path = path.as_ref();
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let data = fs::read_to_string(path)?;
+    let mut directives = parse_directives(&data)?;
+    let mut vars: HashMap<String, String> = HashMap::new();
+    expand_includes(&mut directives, base, Some(path), &mut vars)?;
+    Ok(directives)
+}
+
+/// Convenience helper to parse a main config file and expand includes.
+pub fn parse_main_from_file<P: AsRef<Path>>(path: P)
+    -> Result<Main, ::failure::Error>
+{
+    let dirs = parse_directives_from_file(path)?;
+    Ok(Main { directives: dirs })
+}
+
+fn value_to_path(v: &Value) -> Option<String> {
+    use value::Item;
+    let mut s = String::new();
+    for item in &v.data {
+        match item {
+            Item::Literal(x) => s.push_str(&x),
+            Item::Variable(_) => return None,
+        }
+    }
+    Some(s)
+}
+
+fn resolve_value_with_vars(v: &Value, vars: &HashMap<String, String>) -> Option<String> {
+    use value::Item;
+    let mut s = String::new();
+    for item in &v.data {
+        match item {
+            Item::Literal(x) => s.push_str(x),
+            Item::Variable(name) => {
+                if let Some(val) = vars.get(name) {
+                    s.push_str(val);
+                } else {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(s)
+}
+
+fn expand_includes(dirs: &mut Vec<Directive>, base: &Path, current_file: Option<&Path>, vars: &mut HashMap<String, String>)
+    -> Result<(), ::failure::Error>
+{
+    let mut i = 0;
+    while i < dirs.len() {
+        // Update variable map if this directive is a `set` in the current scope.
+        match dirs[i].item {
+            ast::Item::Set { ref variable, ref value } => {
+                if let Some(resolved) = resolve_value_with_vars(value, vars) {
+                    vars.insert(variable.clone(), resolved);
+                }
+            }
+            _ => {}
+        }
+
+        // Recurse into blocks first — blocks create a new local variable scope (clone vars)
+        {
+            use ast::Item::*;
+            match dirs[i].item {
+                Http(ref mut h) => { let mut subvars = vars.clone(); expand_includes(&mut h.directives, base, current_file, &mut subvars)?; }
+                Server(ref mut s) => { let mut subvars = vars.clone(); expand_includes(&mut s.directives, base, current_file, &mut subvars)?; }
+                Location(ref mut l) => { let mut subvars = vars.clone(); expand_includes(&mut l.directives, base, current_file, &mut subvars)?; }
+                If(ref mut iff) => { let mut subvars = vars.clone(); expand_includes(&mut iff.directives, base, current_file, &mut subvars)?; }
+                LimitExcept(ref mut le) => { let mut subvars = vars.clone(); expand_includes(&mut le.directives, base, current_file, &mut subvars)?; }
+                _ => {}
+            }
+        }
+        // Now handle include directive itself
+        match dirs[i].item.clone() {
+            ast::Item::Include(ref v) => {
+                // try to resolve include path using vars; support mixed literal+variables
+                if let Some(pat) = resolve_value_with_vars(v, vars).or_else(|| value_to_path(v)) {
+                    // Interpret pattern relative to base
+                    let full_pat = base.join(&pat).to_string_lossy().into_owned();
+                    let mut inserted = Vec::new();
+                    for entry in glob(&full_pat)? {
+                        if let Ok(path) = entry {
+                            // don't include the file that contains the include
+                            if let Some(cur) = current_file {
+                                if fs::canonicalize(&path)? == fs::canonicalize(cur)? {
+                                    continue;
+                                }
+                            }
+                            if path.is_file() {
+                                let data = fs::read_to_string(&path)?;
+                                let mut inc_dirs = parse_directives(&data)?;
+                                // recursively expand includes within included file
+                                if let Some(dirp) = path.parent() {
+                                    // included file shares current variable scope (included content acts as if inserted here)
+                                    expand_includes(&mut inc_dirs, dirp, Some(&path), vars)?;
+                                }
+                                inserted.append(&mut inc_dirs);
+                            }
+                        }
+                    }
+                    if !inserted.is_empty() {
+                        // replace the include directive with inserted ones
+                        dirs.splice(i..=i, inserted.into_iter());
+                        // do not increment i, process the newly inserted
+                        continue;
+                    }
+                }
+                // If pattern contains unresolved variables or no files matched - leave as-is
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    Ok(())
+}
