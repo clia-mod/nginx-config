@@ -1,16 +1,16 @@
 [package]
-name = "nginx-config"
+name = "clia-nginx-config"
 description = """
-    A parser, AST and formatter for nginx configuration files.
+    A parser, AST and formatter for nginx configuration files. (clia-mod: load sub files)
 """
 license = "MIT/Apache-2.0"
 readme = "README.md"
 keywords = ["nginx", "config", "parser"]
 categories = ["parser-implementations"]
-homepage = "https://github.com/tailhook/nginx-config"
-documentation = "https://docs.rs/nginx-config"
+homepage = "https://github.com/clia-mod/nginx-config"
+documentation = "https://docs.rs/clia-nginx-config"
 version = "0.13.2"
-authors = ["paul@colomiets.name"]
+authors = ["paul@colomiets.name", "helloclia@gmail.com"]
 
 [dependencies]
 combine = "3.5.1"

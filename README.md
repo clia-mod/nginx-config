@@ -1,5 +1,5 @@
-Nginx Config Parser (unofficial)
-================================
+Nginx Config Parser (unofficial) (clia-mod: load sub files)
+===========================================================
 
 [Documentation](https://docs.rs/nginx-config) |
 [Github](https://github.com/tailhook/nginx-config) |
