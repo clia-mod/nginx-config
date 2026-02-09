@@ -320,12 +320,19 @@ pub fn directive<'a>() -> impl Parser<Output=Directive, Input=TokenStream<'a>>
 
 /// Parses a piece of config in "main" context (i.e. top-level)
 ///
-/// Currently, this is the same as parse_directives (except wraps everyting
-/// to a `Main` struct), but we expect to
-/// add validation/context checks in this function.
-pub fn parse_main(s: &str) -> Result<Main, ParseError> {
-    parse_directives(s).map(|directives| Main { directives })
-}
+/// This function parses directives and also expands `include` directives
+/// using the current working directory as the base for relative paths.
+/// If you want includes resolved relative to a file, use
+/// `parse_main_from_file(path)` instead.
+pub fn parse_main(s: &str) -> Result<Main, ::failure::Error> {
+    // Parse into directives (possibly returning a parse error)
+    let mut directives = parse_directives(s).map_err(|e| ::failure::Error::from(e))?;
+    // Expand includes using current working directory as base
+    let base = Path::new(".");
+    let mut vars: HashMap<String, String> = HashMap::new();
+    expand_includes(&mut directives, base, None, &mut vars)?;
+    Ok(Main { directives })
+} 
 
 /// Parses a piece of config from arbitrary context
 ///

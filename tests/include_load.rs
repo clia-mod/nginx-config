@@ -51,3 +51,24 @@ fn include_repo_fixture_is_loaded() {
     assert!(has_server);
 }
 
+#[test]
+fn parse_main_expands_include_using_cwd() {
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::Path;
+
+    // Read fixture file into a string and replace the relative include with an
+    // absolute path pattern so the expansion doesn't depend on global cwd.
+    let mut buf = String::new();
+    File::open("tests/include/nginx.conf").unwrap().read_to_string(&mut buf).unwrap();
+    let base = Path::new("tests/include").canonicalize().unwrap();
+    let pat = format!("{}/conf/*.conf", base.to_string_lossy());
+    let buf = buf.replace("include conf/*.conf;", &format!("include {} ;", pat));
+
+    let m = clia_nginx_config::parse_main(&buf).unwrap();
+
+    let http = m.directives.iter().find(|d| d.item.directive_name() == "http").expect("http block");
+    let children = http.item.children().unwrap();
+    assert!(children.iter().any(|c| c.item.directive_name() == "server"));
+}
+
