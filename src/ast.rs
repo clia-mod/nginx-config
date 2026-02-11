@@ -194,6 +194,11 @@ pub struct Map {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Types {
+    pub types: Vec<(Value, Vec<Value>)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorPageResponse {
     /// The response code of a target uri
     Target,
@@ -369,6 +374,7 @@ pub enum Item {
     Alias(Value),
     ErrorPage(ErrorPage),
     DefaultType(Value),
+    Types(Types),
     ErrorLog { file: Value, level: Option<ErrorLevel>},
     Rewrite(Rewrite),
     Return(Return),
@@ -455,6 +461,7 @@ impl Item {
             Alias(..) => "alias",
             ErrorPage(..) => "error_page",
             DefaultType(..) => "default_type",
+            Types(..) => "types",
             ErrorLog {..} => "error_log",
             Rewrite(..) => "rewrite",
             Return(..) => "return",
@@ -539,6 +546,7 @@ impl Item {
             Alias(..) => None,
             ErrorPage(..) => None,
             DefaultType(..) => None,
+            Types(..) => None,
             ErrorLog {..} => None,
             Rewrite(..) => None,
             Return(..) => None,
@@ -623,6 +631,7 @@ impl Item {
             Alias(..) => None,
             ErrorPage(..) => None,
             DefaultType(..) => None,
+            Types(ref mut _t) => None,
             ErrorLog {..} => None,
             Rewrite(..) => None,
             Return(..) => None,
@@ -726,6 +735,14 @@ impl Item {
             Alias(ref mut v) => f(v),
             ErrorPage(::ast::ErrorPage { ref mut uri, .. }) => f(uri),
             DefaultType(ref mut v) => f(v),
+            Types(ref mut t) => {
+                for (ref mut mime, ref mut exts) in &mut t.types {
+                    f(mime);
+                    for e in exts {
+                        f(e);
+                    }
+                }
+            }
             ErrorLog { ref mut file, .. } => f(file),
             Rewrite(ref mut rw) => f(&mut rw.replacement),
             Return(::ast::Return::Redirect { ref mut url, .. }) => f(url),

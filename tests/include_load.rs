@@ -52,6 +52,16 @@ fn include_repo_fixture_is_loaded() {
 }
 
 #[test]
+fn mime_types_directive_present() {
+    use std::path::Path;
+    let path = Path::new("tests/include/nginx.conf");
+    let m = parse_main_from_file(&path).unwrap();
+    let http = m.directives.iter().find(|d| d.item.directive_name() == "http").expect("http block");
+    let children = http.item.children().unwrap();
+    assert!(children.iter().any(|c| c.item.directive_name() == "types"));
+}
+
+#[test]
 fn parse_main_expands_include_using_cwd() {
     use std::fs::File;
     use std::io::Read;

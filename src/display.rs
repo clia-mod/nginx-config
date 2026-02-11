@@ -229,6 +229,22 @@ impl Displayable for ast::Item {
                 });
                 f.end();
             }
+            Types(ref tt) => {
+                f.margin();
+                f.indent();
+                f.write("types ");
+                f.start_block();
+                for &(ref mime, ref exts) in &tt.types {
+                    f.indent();
+                    mime.display(f);
+                    for ex in exts {
+                        f.write(" ");
+                        ex.display(f);
+                    }
+                    f.end();
+                }
+                f.end_block();
+            }
             | Root(ref val)
             | Alias(ref val)
             | DefaultType(ref val)

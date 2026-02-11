@@ -6,9 +6,9 @@ use combine::easy::Error;
 
 use ast::{self, Main, Directive, Item};
 use error::ParseError;
-use helpers::{semi, ident, text, string};
+use helpers::{semi, ident, text, string, kind};
 use position::Pos;
-use tokenizer::{TokenStream, Token};
+use tokenizer::{TokenStream, Token, Kind};
 use value::Value;
 
 use access;
@@ -288,6 +288,18 @@ pub fn directive<'a>() -> impl Parser<Output=Directive, Input=TokenStream<'a>>
             .map(Item::Server),
         rewrite::directives(),
         try_files(),
+        // mime types block: lines like `text/html  html htm;`
+        ident("types").with(
+            kind(Kind::BlockStart)
+                .with(many(value().and(many(value()).skip(semi()))))
+                .skip(kind(Kind::BlockEnd))
+        ).map(|vec: Vec<(Value, Vec<Value>)>| {
+            let mut t = ::ast::Types { types: Vec::new() };
+            for (mime, exts) in vec {
+                t.types.push((mime, exts));
+            }
+            Item::Types(t)
+        }),
         ident("include").with(value()).skip(semi()).map(Item::Include),
         ident("ssl_certificate").with(value()).skip(semi())
             .map(Item::SslCertificate),
